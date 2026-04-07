@@ -2,8 +2,7 @@ name: Deploy Multi-Container App
 
 on:
   push:
-    branches:
-      - main  # هيشتغل لما ترفع على فرع main
+    branches: [ main ]
 
 jobs:
   build-and-push:
@@ -18,13 +17,12 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push Docker image
+      - name: Build and push Docker images
         uses: docker/build-push-action@v4
         with:
           context: .
           push: true
-          # هيرفع الصورة لـ Docker Hub باسمك
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/lab6-app:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/lab-8-cicd-app:latest
 
   deploy:
     needs: build-and-push
@@ -37,16 +35,7 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # ده الجزء اللي بيتنفذ جوه السيرفر بتاعك أوتوماتيك
-            cd ~/lab8-cicd || (mkdir ~/lab8-cicd && cd ~/lab8-cicd)
-            
-            # لو المجلد فاضي هيعمل clone، لو فيه كود هيعمل pull
-            if [ -d ".git" ]; then
-              git pull origin main
-            else
-              git clone <رابط_مستودعك_هنا> .
-            fi
-            
+            cd ~/lab-8-cicd
+            git pull origin main
             docker compose pull
-            docker compose down
             docker compose up -d
