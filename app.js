@@ -25,6 +25,7 @@ async function initDB() {
         { id: 3, name: 'Bread', status: 'pending' },
         { id: 4, name: 'Butter', status: 'pending' },
         { id: 5, name: 'Orange juice', status: 'pending' }
+        { id: 7, name: 'Tea', status: 'pending' }
       ]);
       console.log("Database seeded!");
     }
