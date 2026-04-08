@@ -1,60 +1,65 @@
 const express = require('express');
 const { MongoClient } = require('mongodb');
-const app = express();
-const port = 3000;
+const os = require('os');
 
-// إعدادات قاعدة البيانات - تأكد أن MONGO_URL معرف في docker-compose
-const url = process.env.MONGO_URL || 'mongodb://db:27017/todo';
+const app = express();
+const PORT = 3000;
+
+// رابط قاعدة البيانات (يستخدم اسم الخدمة 'db' المعرف في docker-compose)
+const DB_URI = process.env.DB_URI || 'mongodb://db:27017/todoDB';
 let db;
 
-// الاتصال بقاعدة البيانات
-async function connectDB() {
-    try {
-        const client = await MongoClient.connect(url);
-        db = client.db();
-        console.log('Connected to MongoDB successfully');
-    } catch (err) {
-        console.error('Database connection failed:', err.message);
+async function initDB() {
+  try {
+    const client = await MongoClient.connect(DB_URI);
+    db = client.db();
+    console.log("Connected to MongoDB");
+
+    // إضافة بيانات أولية (Seed Data) إذا كانت القاعدة فارغة
+    const tasksCollection = db.collection('tasks');
+    const count = await tasksCollection.countDocuments();
+    if (count === 0) {
+      await tasksCollection.insertMany([
+        { id: 1, name: 'Milk', status: 'done' },
+        { id: 2, name: 'Eggs', status: 'done' },
+        { id: 3, name: 'Bread', status: 'pending' },
+        { id: 4, name: 'Butter', status: 'pending' },
+        { id: 5, name: 'Orange juice', status: 'pending' }
+        { id: 7, name: 'Tea', status: 'pending' }
+      ]);
+      console.log("Database seeded!");
     }
+  } catch (err) {
+    console.error("Database connection error:", err);
+  }
 }
 
+initDB();
+
 app.get('/', (req, res) => {
-    res.send('CI/CD Pipeline is active! Task 3 verification in progress.');
+  res.json({
+    app:  'CISC 886 Lab 8',
+    mode: process.env.MODE || 'CI/CD',
+    node: process.version,
+    host: os.hostname(),
+  });
 });
 
-/**
- * المسار الرئيسي لجلب المهام - Task 3
- * يقوم بدمج بيانات قاعدة البيانات مع المهمة الجديدة 'Tea' 
- * لضمان ظهورها في التقرير بعد عملية الـ Deployment الأوتوماتيكية
- */
 app.get('/tasks', async (req, res) => {
-    try {
-        let tasksFromDB = [];
-        if (db) {
-            // جلب البيانات الموجودة فعلياً في قاعدة البيانات
-            tasksFromDB = await db.collection('tasks').find().toArray();
-        }
-
-        // المهمة الجديدة المطلوب إضافتها لإثبات نجاح الـ Round-trip
-        const task3Verification = { 
-            id: 7, 
-            name: 'Tea', 
-            status: 'pending',
-            note: 'Added via CI/CD Pipeline' 
-        };
-
-        // الرد النهائي الذي يجمع بين البيانات الأصلية والتعديل الجديد
-        res.json({
-            status: "Success",
-            deployment: "Automated via GitHub Actions",
-            data: [...tasksFromDB, task3Verification]
-        });
-    } catch (err) {
-        res.status(500).json({ error: "Could not fetch tasks from database" });
-    }
+  try {
+    const tasks = await db.collection('tasks').find({}).toArray();
+    // تجميع المهام حسب الحالة
+    const grouped = {};
+    tasks.forEach(task => {
+      if (!grouped[task.status]) grouped[task.status] = [];
+      grouped[task.status].push(task);
+    });
+    res.json(grouped);
+  } catch (err) {
+    res.status(500).send("Error fetching tasks");
+  }
 });
 
-app.listen(port, () => {
-    console.log(`Server is running on port ${port}`);
-    connectDB();
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
